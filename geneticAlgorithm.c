@@ -23,7 +23,7 @@ struct population {
 char 
 get_new_char()
 {
-    int new_char_val = (rand() % 63)+59;
+    int new_char_val = (rand() % 63) + 59;
 
     return (char)new_char_val;
 }
