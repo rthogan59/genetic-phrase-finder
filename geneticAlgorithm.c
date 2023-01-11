@@ -15,11 +15,12 @@ struct DNA {
 struct population {
     struct DNA ** mating_pool;
     struct DNA ** population;
-    char       *  target;
+    char        * target;
     float         mutation_rate;
     int           max_population;
     int           generations;
     bool          finished;
+    int           mating_pool_len;
 };
 
 char 
@@ -144,6 +145,7 @@ create_new_population(char * target, float mutation_rate, int max_population) {
     p_new_pop->max_population = max_population;
     p_new_pop->generations    = 0;
     p_new_pop->finished       = false;
+    p_new_pop->mating_pool_len = 0;
     
 
     for (int count = 0; count < max_population; count++)
@@ -173,6 +175,32 @@ create_new_population(char * target, float mutation_rate, int max_population) {
 
     EXIT:
         return p_new_pop;
+}
+
+void
+clear_mating_pool(struct population * p_pop)
+{
+    if (NULL == p_pop)
+    {
+        goto EXIT;
+    }
+
+    if (NULL == p_pop->mating_pool)
+    {
+        goto EXIT;
+    }
+
+    for (int count = 0; count < p_pop->mating_pool_len; count++)
+    {
+        free(p_pop->mating_pool[count]);
+    }
+
+    free(p_pop->mating_pool);
+
+    p_pop->mating_pool = NULL;
+
+    EXIT:
+        ;
 }
 
 void
