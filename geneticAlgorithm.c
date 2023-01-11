@@ -13,13 +13,13 @@ struct DNA {
 };
 
 struct population {
-    struct DNA * mating_pool;
-    struct DNA * population;
-    char       * target;
-    float        mutation_rate;
-    int          max_population;
-    int          generations;
-    bool         finished;
+    struct DNA ** mating_pool;
+    struct DNA ** population;
+    char       *  target;
+    float         mutation_rate;
+    int           max_population;
+    int           generations;
+    bool          finished;
 };
 
 char 
@@ -98,7 +98,7 @@ crossover(struct DNA * parent_one, struct DNA * parent_two)
     }
 
     EXIT:
-        return 
+        return p_new_dna;
 }
 
 void
@@ -113,7 +113,8 @@ calc_fitness(struct population * p_pop, char * target)
     //Update fitness values for the population
     for (int count = 0; count < p_pop->max_population; count++)
     {
-        calc_indiv_fitness(target, p_pop->population[count]);
+        char * genes = p_pop->population[count]->genes;
+        calc_indiv_fitness(target, genes);
     }
     
 
@@ -168,14 +169,14 @@ create_new_population(char * target, float mutation_rate, int max_population) {
         p_new_pop->population[count] = p_new_dna;
     }
 
-    calc_fitness(p_new_pop);
+    calc_fitness(p_new_pop, target);
 
     EXIT:
         return p_new_pop;
 }
 
 void
-natural_selection(struct * p_pop)
+natural_selection(struct population * p_pop, char * target)
 {
     
     if (NULL == p_pop)
@@ -191,8 +192,8 @@ natural_selection(struct * p_pop)
 
     for (int count = 0; count < p_pop->max_population; count++)
     {
-        struct * DNA current = p_pop->population[count];
-        float fitness = calc_indiv_fitness(current->genes);
+        struct DNA * current = p_pop->population[count];
+        float fitness = calc_indiv_fitness(target, current->genes);
 
         if (fitness > max_fitness)
         {
@@ -203,9 +204,9 @@ natural_selection(struct * p_pop)
     //Based on fitness, add members of the population to the
     //mating pool a certain number of times
 
-    for (int count = 0; count < p_pop->max_populatuion; count++)
+    for (int count = 0; count < p_pop->max_population; count++)
     {
-        struct * DNA current = p_pop->population[count];
+        struct DNA * current = p_pop->population[count];
         float fitness = current->fitness;
 
         float add_val = floor((fitness/max_fitness)*100);
@@ -233,14 +234,14 @@ main(int argc, char *argv[]) {
 
     //Create new population
     //Fill the population with new DNA and calculate initial fitness
-    struct * population p_pop = create_new_population(target, 0.01, 200);
+    struct population * p_pop = create_new_population(target, 0.01, 200);
 
     //Natural selection
     //Clear the mating pool
     //Get the max fitness val in the population
     //Based on fitness, add members of the population to the
     //mating pool a certain number of times
-    natural_selection(p_pop);
+    natural_selection(p_pop, target);
 
 
     //Generate
