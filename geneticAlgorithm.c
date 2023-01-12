@@ -31,6 +31,7 @@ get_new_char()
     return (char)new_char_val;
 }
 
+
 float 
 calc_indiv_fitness(char * target, char * genes)
 {
@@ -204,6 +205,24 @@ clear_mating_pool(struct population * p_pop)
 }
 
 void
+push_dna(struct DNA ** mating_pool, struct DNA * current, int mating_pool_len)
+{
+    
+    if ((NULL == mating_pool) || (NULL == current))
+    {
+        goto EXIT;
+    }
+
+    *mating_pool = realloc(*mating_pool, sizeof(struct DNA *)*(mating_pool_len+1));
+
+    mating_pool[mating_pool_len] = current;
+
+    EXIT:
+        ;
+}
+
+
+void
 natural_selection(struct population * p_pop, char * target)
 {
     
@@ -241,7 +260,7 @@ natural_selection(struct population * p_pop, char * target)
         
         for (int add_count = 0; add_count < add_val; add_count++)
         {
-            push_dna(p_pop->mating_pool, current);
+            push_dna(p_pop->mating_pool, current, p_pop->mating_pool_len);
         }
     }
 
