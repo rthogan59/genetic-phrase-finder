@@ -6,7 +6,7 @@
 #define POPULATION 200
 #define PHRASE_LEN 19
 
-//63, 122
+
 struct DNA {
     char * genes;
     float  fitness;
@@ -205,20 +205,59 @@ clear_mating_pool(struct population * p_pop)
 }
 
 void
-push_dna(struct DNA ** mating_pool, struct DNA * current, int mating_pool_len)
+push_dna(struct population * p_pop, struct DNA * current)
 {
-    
+
+
+    struct DNA ** mating_pool = p_pop->mating_pool;
+    int mating_pool_len = p_pop->mating_pool_len;
+
     if ((NULL == mating_pool) || (NULL == current))
     {
         goto EXIT;
     }
 
-    *mating_pool = realloc(*mating_pool, sizeof(struct DNA *)*(mating_pool_len+1));
+    *mating_pool = realloc(*mating_pool, sizeof(struct DNA)*(mating_pool_len+1));
 
-    mating_pool[mating_pool_len] = current;
+    p_pop->mating_pool_len += 1;
 
     EXIT:
         ;
+}
+
+
+void 
+generate(struct population * p_pop)
+{
+
+    if (NULL == p_pop)
+    {
+        goto EXIT;
+    }
+
+    for (int count = 0; count < p_pop->max_population; count++)
+    {
+        int a_parent = (rand() % p_pop->mating_pool_len);
+        int b_parent = (rand() % p_pop->mating_pool_len);
+
+        struct DNA * parent_one = p_pop->mating_pool[a_parent];
+        struct DNA * parent_two = p_pop->mating_pool[b_parent];
+
+        struct DNA * child = crossover(parent_one, parent_two);
+
+        //MUTATE
+
+        //FREE CURRENT DNA
+
+
+        p_pop->population[count] = child;
+    }
+
+    p_pop->generations++;
+
+    EXIT:
+        ;
+    
 }
 
 
@@ -260,7 +299,7 @@ natural_selection(struct population * p_pop, char * target)
         
         for (int add_count = 0; add_count < add_val; add_count++)
         {
-            push_dna(p_pop->mating_pool, current, p_pop->mating_pool_len);
+            push_dna(p_pop, current);
         }
     }
 
