@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
+#include <time.h>
 
 #define POPULATION 200
 #define PHRASE_LEN 19
@@ -21,6 +23,7 @@ struct population {
     int           generations;
     bool          finished;
     int           mating_pool_len;
+    struct DNA *  best;
 };
 
 char 
@@ -141,12 +144,14 @@ create_new_population(char * target, float mutation_rate, int max_population) {
         goto EXIT;
     }
 
-    p_new_pop->target         = target;
-    p_new_pop->mutation_rate  = mutation_rate;
-    p_new_pop->max_population = max_population;
-    p_new_pop->generations    = 0;
-    p_new_pop->finished       = false;
+    p_new_pop->target          = target;
+    p_new_pop->mutation_rate   = mutation_rate;
+    p_new_pop->max_population  = max_population;
+    p_new_pop->generations     = 0;
+    p_new_pop->finished        = false;
     p_new_pop->mating_pool_len = 0;
+    p_new_pop->best            = NULL;
+    p_new_pop->mating_pool     = NULL;
     
 
     for (int count = 0; count < max_population; count++)
@@ -170,6 +175,7 @@ create_new_population(char * target, float mutation_rate, int max_population) {
         }
 
         p_new_pop->population[count] = p_new_dna;
+
     }
 
     calc_fitness(p_new_pop, target);
@@ -198,7 +204,8 @@ clear_mating_pool(struct population * p_pop)
 
     free(p_pop->mating_pool);
 
-    p_pop->mating_pool = NULL;
+    p_pop->mating_pool     = NULL;
+    p_pop->mating_pool_len = 0;
 
     EXIT:
         ;
@@ -207,17 +214,17 @@ clear_mating_pool(struct population * p_pop)
 void
 push_dna(struct population * p_pop, struct DNA * current)
 {
-
-
     struct DNA ** mating_pool = p_pop->mating_pool;
     int mating_pool_len = p_pop->mating_pool_len;
 
-    if ((NULL == mating_pool) || (NULL == current))
+    if (NULL == current)
     {
         goto EXIT;
     }
 
     *mating_pool = realloc(*mating_pool, sizeof(struct DNA)*(mating_pool_len+1));
+
+    mating_pool[mating_pool_len] = current;
 
     p_pop->mating_pool_len += 1;
 
@@ -260,6 +267,40 @@ generate(struct population * p_pop)
     
 }
 
+void
+evaluate(struct population * p_pop, char * target)
+{
+    
+    if ((NULL == p_pop) || (NULL == target))
+    {
+        goto EXIT;
+    }
+
+    float best_fitness = 0;
+    int best_index     = 0;
+
+    for (int count = 0; count < p_pop->max_population; count++)
+    {
+        float current_fitness = p_pop->population[count]->fitness;
+
+        if (current_fitness > best_fitness)
+        {
+            best_fitness = current_fitness;
+            best_index   = count;
+        }
+    }
+
+    p_pop->best = p_pop->population[best_index];
+
+    if (0 == strncmp(p_pop->best->genes, target, PHRASE_LEN))
+    {
+        p_pop->finished = true;
+    }
+
+    EXIT:
+        ;
+}
+
 
 void
 natural_selection(struct population * p_pop, char * target)
@@ -271,7 +312,11 @@ natural_selection(struct population * p_pop, char * target)
     }
 
     //Clear the mating pool
-    clear_mating_pool(p_pop->mating_pool);
+    if (NULL != p_pop->mating_pool)
+    {
+        clear_mating_pool(p_pop);
+    }
+    
 
     //Get the max fitness val in the population
     float max_fitness = 0;
@@ -279,13 +324,13 @@ natural_selection(struct population * p_pop, char * target)
     for (int count = 0; count < p_pop->max_population; count++)
     {
         struct DNA * current = p_pop->population[count];
-        float fitness = calc_indiv_fitness(target, current->genes);
 
-        if (fitness > max_fitness)
+        if (current->fitness > max_fitness)
         {
-            max_fitness = fitness;
+            max_fitness = current->fitness;
         }
     }
+
 
     //Based on fitness, add members of the population to the
     //mating pool a certain number of times
@@ -296,7 +341,7 @@ natural_selection(struct population * p_pop, char * target)
         float fitness = current->fitness;
 
         float add_val = floor((fitness/max_fitness)*100);
-        
+
         for (int add_count = 0; add_count < add_val; add_count++)
         {
             push_dna(p_pop, current);
@@ -322,25 +367,52 @@ main(int argc, char *argv[]) {
     //Fill the population with new DNA and calculate initial fitness
     struct population * p_pop = create_new_population(target, 0.01, 200);
 
-    //Natural selection
-    //Clear the mating pool
-    //Get the max fitness val in the population
-    //Based on fitness, add members of the population to the
-    //mating pool a certain number of times
-    natural_selection(p_pop, target);
+    printf("Population created");
 
 
-    //Generate
-    //Refill the population with children from the mating pool
-    //using crossover
-    //Increment generations
+    while (true)
+    {
+        //Natural selection
+        //Clear the mating pool
+        //Get the max fitness val in the population
+        //Based on fitness, add members of the population to the
+        //mating pool a certain number of times
+        natural_selection(p_pop, target);
 
-    //Calc fitness
-    //Update the fitness of each element in the population
+        printf("Natural selection done");
 
-    //Evaluate
-    //Compute the current "most fit" member of the population
-    //Set finished if the most fit member's genes equal the target
+        printf("Length of mating pool: %d", p_pop->mating_pool_len);
 
+        //Generate
+        //Refill the population with children from the mating pool
+        //using crossover
+        //Increment generations
+        generate(p_pop);
+
+        printf("Generation done");
+
+        //Calc fitness
+        //Update the fitness of each element in the population
+        calc_fitness(p_pop, target);
+
+        printf("Fitness calculated");
+
+        //Evaluate
+        //Compute the current "most fit" member of the population
+        //Set finished if the most fit member's genes equal the target
+        evaluate(p_pop, target);
+
+        printf("Best fitness from current generation: %s", p_pop->best->genes);
+
+        break;
+
+        if (p_pop->finished)
+        {
+            break;
+        }
+    }
+
+    printf("Finished after %d generations", p_pop->generations);
+    
     
 }
