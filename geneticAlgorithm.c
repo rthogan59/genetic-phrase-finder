@@ -23,13 +23,29 @@ struct population {
     int           generations;
     bool          finished;
     int           mating_pool_len;
-    struct DNA *  best;
+    char        * best;
 };
 
 char 
 get_new_char()
 {
-    int new_char_val = (rand() % 63) + 59;
+
+    int new_char_val = (rand() % 59) + 63;
+
+    while (new_char_val < 97 && new_char_val > 90)
+    {
+        new_char_val = (rand() % 59) + 63;
+    }
+
+    if (63 == new_char_val)
+    {
+        new_char_val = 32;
+    }
+
+    if (64 == new_char_val)
+    {
+        new_char_val = 46;
+    }
 
     return (char)new_char_val;
 }
@@ -52,11 +68,11 @@ calc_indiv_fitness(char * target, char * genes)
     {
         if (target[i] == genes[i])
         {
-            score++;
+            score += 1;
         }
     }
 
-    ret_val = (float)score / PHRASE_LEN;
+    ret_val = (float)score / (float)PHRASE_LEN;
 
     EXIT:
         return ret_val;
@@ -79,7 +95,7 @@ crossover(struct DNA * parent_one, struct DNA * parent_two)
         goto EXIT;
     }
 
-    p_new_dna->genes = malloc(sizeof(char)*PHRASE_LEN);
+    p_new_dna->genes = malloc(sizeof(char)*(PHRASE_LEN+1));
 
     if (NULL == p_new_dna->genes)
     {
@@ -87,7 +103,7 @@ crossover(struct DNA * parent_one, struct DNA * parent_two)
         p_new_dna = NULL;
         goto EXIT;
     }
-    
+
     int mid_point = (rand() % PHRASE_LEN);
 
     for (int i = 0; i < PHRASE_LEN; i++)
@@ -101,6 +117,8 @@ crossover(struct DNA * parent_one, struct DNA * parent_two)
             p_new_dna->genes[i] = parent_two->genes[i];
         }
     }
+
+    p_new_dna->genes[PHRASE_LEN] = '\0';
 
     EXIT:
         return p_new_dna;
@@ -119,9 +137,8 @@ calc_fitness(struct population * p_pop, char * target)
     for (int count = 0; count < p_pop->max_population; count++)
     {
         char * genes = p_pop->population[count]->genes;
-        calc_indiv_fitness(target, genes);
+        p_pop->population[count]->fitness = calc_indiv_fitness(target, genes);
     }
-    
 
     EXIT:
         ;
@@ -152,8 +169,11 @@ create_new_population(char * target, float mutation_rate, int max_population) {
     p_new_pop->mating_pool_len = 0;
     p_new_pop->best            = NULL;
     p_new_pop->mating_pool     = NULL;
+
+    p_new_pop->population      = malloc(sizeof(struct DNA *) * max_population);
     
 
+    printf("Initializing population");
     for (int count = 0; count < max_population; count++)
     {
         struct DNA * p_new_dna = malloc(sizeof(struct DNA));
@@ -165,7 +185,7 @@ create_new_population(char * target, float mutation_rate, int max_population) {
             goto EXIT;
         }
 
-        p_new_dna->genes = malloc(sizeof(char)*PHRASE_LEN);
+        p_new_dna->genes = malloc(sizeof(char)*(PHRASE_LEN+1));
 
         //NULL CHECK
 
@@ -174,9 +194,13 @@ create_new_population(char * target, float mutation_rate, int max_population) {
             p_new_dna->genes[char_num] = get_new_char();
         }
 
+        p_new_dna->genes[PHRASE_LEN] = '\0';
+
         p_new_pop->population[count] = p_new_dna;
 
     }
+
+    printf("Calculating fitness");
 
     calc_fitness(p_new_pop, target);
 
@@ -222,9 +246,15 @@ push_dna(struct population * p_pop, struct DNA * current)
         goto EXIT;
     }
 
-    *mating_pool = realloc(*mating_pool, sizeof(struct DNA)*(mating_pool_len+1));
+    p_pop->mating_pool = realloc(p_pop->mating_pool, sizeof(struct DNA *) * (mating_pool_len+1));
 
-    mating_pool[mating_pool_len] = current;
+    if (NULL == p_pop->mating_pool)
+    {
+        printf("Realloc failed");
+        goto EXIT;
+    }
+
+    p_pop->mating_pool[mating_pool_len] = current;
 
     p_pop->mating_pool_len += 1;
 
@@ -233,14 +263,18 @@ push_dna(struct population * p_pop, struct DNA * current)
 }
 
 
-void 
+void
 generate(struct population * p_pop)
 {
+
+    struct DNA ** new_pop = NULL;
 
     if (NULL == p_pop)
     {
         goto EXIT;
     }
+
+    new_pop = malloc(sizeof(struct DNA *) * (p_pop->max_population));
 
     for (int count = 0; count < p_pop->max_population; count++)
     {
@@ -253,12 +287,28 @@ generate(struct population * p_pop)
         struct DNA * child = crossover(parent_one, parent_two);
 
         //MUTATE
+        if ((rand() % 100) < (100*p_pop->mutation_rate))
+        {
+            printf("Mutating");
+            int new_index = (rand() % PHRASE_LEN);
+            child->genes[new_index] = get_new_char();
+        }
 
-        //FREE CURRENT DNA
 
-
-        p_pop->population[count] = child;
+       new_pop[count] = child;
     }
+
+
+    //Free current population
+
+    // for (int count = 0; count < p_pop->max_population; count++)
+    // {
+    //     free(p_pop->population[count]->genes);
+    //     free(p_pop->population[count]);
+    //     free(p_pop->population);
+    // }
+
+    p_pop->population = new_pop;
 
     p_pop->generations++;
 
@@ -290,9 +340,9 @@ evaluate(struct population * p_pop, char * target)
         }
     }
 
-    p_pop->best = p_pop->population[best_index];
+    p_pop->best = p_pop->population[best_index]->genes;
 
-    if (0 == strncmp(p_pop->best->genes, target, PHRASE_LEN))
+    if (0 == strncmp(p_pop->best, target, PHRASE_LEN))
     {
         p_pop->finished = true;
     }
@@ -317,7 +367,6 @@ natural_selection(struct population * p_pop, char * target)
         clear_mating_pool(p_pop);
     }
     
-
     //Get the max fitness val in the population
     float max_fitness = 0;
 
@@ -331,7 +380,6 @@ natural_selection(struct population * p_pop, char * target)
         }
     }
 
-
     //Based on fitness, add members of the population to the
     //mating pool a certain number of times
 
@@ -340,7 +388,10 @@ natural_selection(struct population * p_pop, char * target)
         struct DNA * current = p_pop->population[count];
         float fitness = current->fitness;
 
-        float add_val = floor((fitness/max_fitness)*100);
+        int add_val = floor((fitness/max_fitness)*100);
+
+        //Add at least once
+        //push_dna(p_pop, current);
 
         for (int add_count = 0; add_count < add_val; add_count++)
         {
@@ -357,7 +408,8 @@ natural_selection(struct population * p_pop, char * target)
 int 
 main(int argc, char *argv[]) {
 
-    srand(time(NULL));
+    time_t t;
+    srand((unsigned) time(&t));
 
     //Initialize population
 
@@ -369,42 +421,40 @@ main(int argc, char *argv[]) {
 
     printf("Population created");
 
+    int count = 0;
 
-    while (true)
+    while (count < 10)
     {
         //Natural selection
         //Clear the mating pool
         //Get the max fitness val in the population
         //Based on fitness, add members of the population to the
         //mating pool a certain number of times
+        printf("Natural selection");
         natural_selection(p_pop, target);
-
-        printf("Natural selection done");
-
-        printf("Length of mating pool: %d", p_pop->mating_pool_len);
 
         //Generate
         //Refill the population with children from the mating pool
         //using crossover
         //Increment generations
+        printf("Generate");
         generate(p_pop);
 
-        printf("Generation done");
 
         //Calc fitness
         //Update the fitness of each element in the population
+        printf("Calc fitness");
         calc_fitness(p_pop, target);
-
-        printf("Fitness calculated");
 
         //Evaluate
         //Compute the current "most fit" member of the population
         //Set finished if the most fit member's genes equal the target
+        printf("Evaluate");
         evaluate(p_pop, target);
 
-        printf("Best fitness from current generation: %s", p_pop->best->genes);
-
-        break;
+        printf("Best fitness from current generation: %s\n", p_pop->best);
+        
+        count += 1;
 
         if (p_pop->finished)
         {
