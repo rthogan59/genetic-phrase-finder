@@ -14,6 +14,7 @@
 struct DNA {
     char * genes;
     float  fitness;
+    int    add_val;
 };
 
 struct population {
@@ -209,7 +210,7 @@ clear_mating_pool(struct population * p_pop)
 
     for (int count = 0; count < p_pop->mating_pool_len; count++)
     {
-        //free(p_pop->mating_pool[count]->genes);
+        free(p_pop->mating_pool[count]->genes);
         free(p_pop->mating_pool[count]);
     }
 
@@ -225,22 +226,25 @@ clear_mating_pool(struct population * p_pop)
 void
 push_dna(struct population * p_pop, struct DNA * current)
 {
-    int mating_pool_len = p_pop->mating_pool_len;
 
     if (NULL == current)
     {
         goto EXIT;
     }
 
-    p_pop->mating_pool = realloc(p_pop->mating_pool, sizeof(struct DNA *) * (mating_pool_len+1));
+    p_pop->mating_pool = realloc(p_pop->mating_pool, sizeof(struct DNA *) * (p_pop->mating_pool_len+1));
 
     if (NULL == p_pop->mating_pool)
     {
         printf("Realloc failed");
         goto EXIT;
     }
+    
+    p_pop->mating_pool[p_pop->mating_pool_len] = malloc(sizeof(struct DNA));
+    p_pop->mating_pool[p_pop->mating_pool_len]->genes = malloc(sizeof(char)*(PHRASE_LEN+1));
 
-    p_pop->mating_pool[mating_pool_len] = current;
+    memcpy(p_pop->mating_pool[p_pop->mating_pool_len]->genes, current->genes, PHRASE_LEN+1);
+    p_pop->mating_pool[p_pop->mating_pool_len]->fitness = current->fitness;
 
     p_pop->mating_pool_len += 1;
 
@@ -288,7 +292,7 @@ generate(struct population * p_pop)
 
     for (int count = 0; count < p_pop->max_population; count++)
     {
-        //free(p_pop->population[count]->genes);
+        free(p_pop->population[count]->genes);
         free(p_pop->population[count]);
     }
 
@@ -433,7 +437,7 @@ main(int argc, char *argv[]) {
 
     int count = 0;
 
-    while (count < 5)
+    while (true)
     {
         //Natural selection
         //Clear the mating pool
@@ -462,9 +466,8 @@ main(int argc, char *argv[]) {
         //printf("Evaluate");
         evaluate(p_pop, target);
 
-        //printf("Best fitness from current generation: %s\n", p_pop->best);
-        
-        count += 1;
+        printf("Best fitness from current generation: %s\n", p_pop->best);
+
 
         if (p_pop->finished)
         {
@@ -472,9 +475,9 @@ main(int argc, char *argv[]) {
         }
     }
 
-    destroy_population(p_pop);
-
     printf("Finished after %d generations", p_pop->generations);
+
+    destroy_population(p_pop);
     
     
 }
